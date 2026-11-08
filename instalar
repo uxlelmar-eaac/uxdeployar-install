@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Instalador guiado de uxdeployar para Linux y macOS. Se ejecuta en TU PC, nunca en el VPS:
+#   curl -fsSL https://raw.githubusercontent.com/<dueño>/uxdeployar-install/main/instalar | bash
+# Descarga el programa del PC, comprueba su SHA-256, lo deja en ~/.local/share/uxdeployar-pc con el
+# lanzador ~/.local/bin/uxdeployar-pc y abre `uxdeployar-pc instalar` (los argumentos pasan tal cual:
+#   curl … | bash -s -- 203.0.113.10 --panel panel.ejemplo.com).
+# release/scripts-pc.sh rellena la URL y el hash del paquete de cada versión.
+set -euo pipefail
+
+URL_PAQUETE='https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.19/pc/uxdeployar-pc.tar.gz'
+SHA_PAQUETE='9be8fb79ae92ed30e1a058f5f5167d58b024a691c04a6ce60d8763b41029d202'
+
+error() { printf '✖  %s\n' "$*" >&2; exit 1; }
+info() { printf '   %s\n' "$*"; }
+
+terminal() { [ -t 0 ] || (exec </dev/tty) 2>/dev/null; }
+
+si_no() { # pregunta → 0 si sí; sin terminal, no
+  local r
+  terminal || return 1
+  if [ -t 0 ]; then read -r -p "?  $1 [S/n]: " r; else read -r -p "?  $1 [S/n]: " r </dev/tty; fi
+  case "$r" in '' | [SsYy]*) return 0 ;; *) return 1 ;; esac
+}
+
+sha256() {
+  if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
+
+python_valido() {
+  command -v python3 >/dev/null && python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null
+}
+
+preparar_python() {
+  if ! python_valido; then
+    if [ "$(uname -s)" = Darwin ]; then
+      error 'falta Python 3.10 o posterior: instálalo con «brew install python» o desde https://www.python.org/downloads/'
+    fi
+    if command -v apt-get >/dev/null && si_no 'Falta Python 3. ¿Lo instalo con apt?'; then
+      sudo apt-get install -y python3 python3-venv
+    fi
+    python_valido || error 'falta Python 3.10 o posterior (paquete python3 de tu sistema)'
+  fi
+  python3 -c 'import paramiko' 2>/dev/null && return 0
+  if ! python3 -c 'import venv, ensurepip' 2>/dev/null; then
+    if command -v apt-get >/dev/null && si_no 'Falta python3-venv. ¿Lo instalo con apt?'; then
+      sudo apt-get install -y python3-venv
+    fi
+    python3 -c 'import venv, ensurepip' 2>/dev/null || error 'falta el módulo venv de Python (paquete python3-venv)'
+  fi
+}
+
+descargar() { # destino
+  local tmp
+  tmp="$(mktemp)"
+  info "descargando el programa del PC…"
+  curl -fsSL --retry 3 -o "$tmp" "$URL_PAQUETE" || { rm -f "$tmp"; error "no pude descargar $URL_PAQUETE"; }
+  [ "$(sha256 "$tmp")" = "$SHA_PAQUETE" ] || { rm -f "$tmp"; error 'el paquete descargado no coincide con su SHA-256: no lo ejecuto'; }
+  rm -rf "$1.nuevo"
+  mkdir -p "$1.nuevo"
+  tar -xzf "$tmp" -C "$1.nuevo" --strip-components 1
+  rm -f "$tmp"
+  [ -d "$1/.venv" ] && mv "$1/.venv" "$1.nuevo/.venv"
+  rm -rf "$1"
+  mv "$1.nuevo" "$1"
+  printf '%s\n' "$SHA_PAQUETE" >"$1/.paquete"
+}
+
+lanzador() { # carpeta
+  local bin="$HOME/.local/bin"
+  mkdir -p "$bin"
+  printf '#!/bin/sh\nexec python3 %s "$@"\n' "'$1/ux-infra.py'" >"$bin/uxdeployar-pc"
+  chmod 755 "$bin/uxdeployar-pc"
+  case ":$PATH:" in *":$bin:"*) ;; *) info "lanzador en $bin/uxdeployar-pc (añade $bin a tu PATH para usarlo)" ;; esac
+}
+
+main() {
+  [ "$(id -u)" -ne 0 ] || info 'aviso: lo estás ejecutando como root; basta con tu usuario normal'
+  command -v curl >/dev/null || error 'falta curl'
+  preparar_python
+  local carpeta="${XDG_DATA_HOME:-$HOME/.local/share}/uxdeployar-pc"
+  if [ "$(cat "$carpeta/.paquete" 2>/dev/null)" != "$SHA_PAQUETE" ]; then
+    mkdir -p "$(dirname "$carpeta")"
+    descargar "$carpeta"
+  fi
+  lanzador "$carpeta"
+  if [ ! -t 0 ] && terminal; then
+    exec python3 "$carpeta/ux-infra.py" instalar "$@" </dev/tty
+  fi
+  exec python3 "$carpeta/ux-infra.py" instalar "$@"
+}
+
+main "$@"
