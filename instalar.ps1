@@ -4,7 +4,7 @@
 # lanzador uxdeployar-pc.cmd y abre `uxdeployar-pc instalar`.
 # Sin `exit`: dentro de `iex` cerraría la ventana de PowerShell. release/scripts-pc.sh rellena la URL y el hash del paquete de cada versión.
 $ErrorActionPreference = 'Stop'
-$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.34/pc/uxdeployar-pc.tar.gz'
+$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.35/pc/uxdeployar-pc.tar.gz'
 $ShaPaquete = 'f8b2a3acc2ad9d25297581ab62690c7fee55251b39e4cf680777a9f90773a603'
 
 function Salir([string]$Texto) {
