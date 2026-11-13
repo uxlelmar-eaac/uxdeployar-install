@@ -3,9 +3,13 @@
 # Descarga el programa del PC, comprueba su SHA-256, lo deja en %LOCALAPPDATA%\uxdeployar-pc con el
 # lanzador uxdeployar-pc.cmd y abre `uxdeployar-pc instalar`.
 # Sin `exit`: dentro de `iex` cerraría la ventana de PowerShell. release/scripts-pc.sh rellena la URL y el hash del paquete de cada versión.
+# Todo va dentro de un bloque: con `iex` el script corre en la sesión de quien lo lanza, y así el modo
+# estricto y `Stop` no se quedan activos en su PowerShell al terminar.
+& {
+Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
-$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.55/pc/uxdeployar-pc.tar.gz'
-$ShaPaquete = 'b465a0f935958968b71ba96532062399fb1634db396ded0856fb11f0392e2e17'
+$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.58/pc/uxdeployar-pc.tar.gz'
+$ShaPaquete = '029c6b4e0475f8aea7330395670baa5c720786a4ba80c454d8e43bcf66132390'
 
 function Salir([string]$Texto) {
   Write-Host "X  $Texto" -ForegroundColor Red
@@ -21,6 +25,19 @@ function Buscar-Python {
     if ($LASTEXITCODE -eq 0) { return , $candidato }
   }
   return $null
+}
+
+function Descargar([string]$Url, [string]$Destino) {
+  for ($intento = 1; ; $intento++) {
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Destino
+      return
+    } catch {
+      if ($intento -ge 3) { Salir "no pude descargar $Url ($($_.Exception.Message))" }
+      Write-Host "   la descarga falló (intento $intento de 3); reintento en $($intento * 5) s…"
+      Start-Sleep -Seconds ($intento * 5)
+    }
+  }
 }
 
 function Recargar-Path {
@@ -48,7 +65,7 @@ $actual = if (Test-Path $marca) { (Get-Content $marca -Raw).Trim() } else { '' }
 if ($actual -ne $ShaPaquete) {
   $tmp = Join-Path ([IO.Path]::GetTempPath()) "uxdeployar-pc-$PID.tar.gz"
   Write-Host '   descargando el programa del PC…'
-  Invoke-WebRequest -UseBasicParsing -Uri $UrlPaquete -OutFile $tmp
+  Descargar $UrlPaquete $tmp
   if ((Get-FileHash $tmp -Algorithm SHA256).Hash.ToLower() -ne $ShaPaquete) {
     Remove-Item $tmp -Force
     Salir 'el paquete descargado no coincide con su SHA-256: no lo ejecuto'
@@ -73,3 +90,4 @@ Set-Content -Path $lanzador -Encoding ascii -Value "@echo off`r`n$pyTexto `"$pro
 Write-Host "   lanzador: $lanzador"
 
 & $pyOrden @pyExtra $programa instalar @args
+} @args
