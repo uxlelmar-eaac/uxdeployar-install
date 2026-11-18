@@ -7,7 +7,7 @@
 # release/scripts-pc.sh rellena la URL y el hash del paquete de cada versión.
 set -euo pipefail
 
-URL_PAQUETE='https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.96/pc/uxdeployar-pc.tar.gz'
+URL_PAQUETE='https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.98/pc/uxdeployar-pc.tar.gz'
 SHA_PAQUETE='3a58c8e1233d0def02d0ba20b6812f5c04e305d541ed6b90526c26e774b120e7'
 
 error() { printf '✖  %s\n' "$*" >&2; exit 1; }
