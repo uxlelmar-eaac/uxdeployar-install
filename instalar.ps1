@@ -8,8 +8,8 @@
 & {
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
-$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.113/pc/uxdeployar-pc.tar.gz'
-$ShaPaquete = '5dcacce17fcf6a17f6a1f5458f09ed8d3ea6d98c79ada84237b1859e0d44df7e'
+$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.115/pc/uxdeployar-pc.tar.gz'
+$ShaPaquete = '029875a4215d203ced4c418e0d7a8c78f05d3e035e52a6cab296b9ecb9c67c21'
 
 function Salir([string]$Texto) {
   Write-Host "X  $Texto" -ForegroundColor Red
