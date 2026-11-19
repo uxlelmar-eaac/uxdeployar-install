@@ -42,6 +42,24 @@ ux_gh() { # url salida [accept]
 
 ux_es_version() { [[ ${1:-} =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; }
 
+# 0 si la versión $1 es anterior a $2 (vX.Y.Z[-rc.N]; sin -rc va después de cualquier -rc de la misma X.Y.Z).
+ux_version_anterior() { # a b
+  local a="${1#v}" b="${2#v}" i x y
+  local -a pa pb
+  IFS=. read -r -a pa <<< "${a%%-*}"
+  IFS=. read -r -a pb <<< "${b%%-*}"
+  for i in 0 1 2; do
+    x=$((10#${pa[i]:-0}))
+    y=$((10#${pb[i]:-0}))
+    [ "$x" -lt "$y" ] && return 0
+    [ "$x" -gt "$y" ] && return 1
+  done
+  x="${a#*-rc.}" y="${b#*-rc.}"
+  [ "$x" != "$a" ] || x=999999
+  [ "$y" != "$b" ] || y=999999
+  [ "$((10#$x))" -lt "$((10#$y))" ]
+}
+
 # 0 = JSON del release en <salida>; 2 = pide token (401/403/404 sin token); 1 = otro fallo.
 ux_release_json() { # version|latest salida
   local url code
@@ -395,14 +413,19 @@ main() {
   validar
   dns_apunta
 
-  local ca="$UX_ACME_CA"
+  local ca="$UX_ACME_CA" firma="llave oficial de uxdeployar"
   [ -n "$ca" ] || ca="Let's Encrypt"
+  # Otra llave u otro origen cambian en quién confías: se dice siempre, antes de --yes.
+  [ "$UX_SIGNING_PUBKEY" = "$UX_SIGNING_PUBKEY_DEFAULT" ] ||
+    firma="⚠ llave NO oficial ($UX_SIGNING_PUBKEY): solo si tú firmas tus releases"
   cat <<EOF
 
 uxdeployar se instalará en este VPS ($UX_PUBLIC_IP):
   panel  https://$UX_PANEL_DOMAIN      API  https://$UX_API_DOMAIN
   SSH    $UX_ADMIN_USER@$UX_PUBLIC_IP -p $UX_SSH_PORT (solo llave)
   TLS    $ca
+  Firma  $firma
+  Origen ${UX_RELEASE_URL:-github.com/$UX_RELEASE_REPO}
 El endurecimiento no se deshace y el puerto 22 se cierra en la etapa E03.
 Respaldos (E14), alertas y 2FA de SSH quedan para el panel.
 EOF
@@ -413,6 +436,8 @@ EOF
   descargar
   escribir_conf
   bash "$UX_RELEASES/$VERSION/bundle/installer/runtime/uxdeployar" _activar "$VERSION"
+  [ -x /usr/local/bin/uxdeployar ] ||
+    die "el paquete de $VERSION no instaló /usr/local/bin/uxdeployar: release incompleto, nada se puso en marcha"
   info "instalación en marcha como servicio (sigue sola tras cortes y reinicios)"
   exec /usr/local/bin/uxdeployar logs --hasta-terminar
 }
