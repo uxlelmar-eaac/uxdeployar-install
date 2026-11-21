@@ -8,7 +8,7 @@
 & {
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
-$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.127/pc/uxdeployar-pc.tar.gz'
+$UrlPaquete = 'https://raw.githubusercontent.com/uxlelmar-eaac/uxdeployar-install/v1.0.128/pc/uxdeployar-pc.tar.gz'
 $ShaPaquete = '1a8e71ed79fd547aa24187749745acba20683710412caef8d63f72772c766fcd'
 
 function Salir([string]$Texto) {
